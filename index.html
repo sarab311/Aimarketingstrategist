@@ -306,7 +306,7 @@ html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-
         </div>
       </div>
       <div class="wizard-nav">
-        <button class="btn-wiz-back" id="btn-start">← Back</button>
+        <button class="btn-wiz-back" data-go="1">← Back</button>
         <button class="btn-wiz-next" data-next="2,3">Continue →</button>
       </div>
     </div>
@@ -517,15 +517,17 @@ async function generate() {
   const miv = setInterval(()=>{ mi=(mi+1)%loadMsgs.length; document.getElementById('ltitle').textContent=loadMsgs[mi][0]; document.getElementById('lsub').textContent=loadMsgs[mi][1]; }, 2000);
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{
-          role: 'user',
-          content: `You are an expert marketing strategist. Generate a marketing strategy. Respond ONLY with a single valid JSON object. No markdown, no code fences, no explanation — raw JSON only. Start your response with { and end with }.
+    // ─────────────────────────────────────────────────────────────
+    // PASTE YOUR FREE GEMINI API KEY BETWEEN THE QUOTES BELOW
+    // Get one free at: https://aistudio.google.com/apikey
+    const GEMINI_API_KEY = 'AIzaSyBJCi3taA2euL42aBc4i0NsxrtoWmxfmyU';
+    // ─────────────────────────────────────────────────────────────
+
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'AIzaSyBJCi3taA2euL42aBc4i0NsxrtoWmxfmyU') {
+      throw new Error('Add your Gemini API key in the HTML file (search for AIzaSyBJCi3taA2euL42aBc4i0NsxrtoWmxfmyU)');
+    }
+
+    const prompt = `You are an expert marketing strategist. Generate a marketing strategy. Respond ONLY with a single valid JSON object. No markdown, no code fences, no explanation — raw JSON only.
 
 Product: ${fd.product}
 Description: ${fd.desc || 'Not provided'}
@@ -535,8 +537,21 @@ Goal: ${fd.goal}
 Tone: ${fd.tone}
 
 Use this exact JSON structure with short, punchy values:
-{"valueProp":"one sentence value proposition","persona":{"name":"Name, Age","profile":"1 sentence who they are","pain":"their #1 pain point","desire":"what they truly want"},"angles":["angle 1","angle 2","angle 3"],"campaign":{"name":"Campaign Name","concept":"1 sentence concept","execution":"1 sentence execution"},"channels":["Channel: tactic","Channel: tactic","Channel: tactic","Channel: tactic"],"adCopy":["Ad A: headline + hook + CTA","Ad B: headline + hook + CTA","Ad C: headline + hook + CTA"],"posts":["Platform: post idea 1","Platform: post idea 2","Platform: post idea 3"],"funnel":[{"stage":"Awareness","tactic":"tactic"},{"stage":"Interest","tactic":"tactic"},{"stage":"Conversion","tactic":"tactic"},{"stage":"Retention","tactic":"tactic"}],"growthHacks":["hack 1","hack 2","hack 3"]}`
-        }]
+{"valueProp":"one sentence value proposition","persona":{"name":"Name, Age","profile":"1 sentence who they are","pain":"their #1 pain point","desire":"what they truly want"},"angles":["angle 1","angle 2","angle 3"],"campaign":{"name":"Campaign Name","concept":"1 sentence concept","execution":"1 sentence execution"},"channels":["Channel: tactic","Channel: tactic","Channel: tactic","Channel: tactic"],"adCopy":["Ad A: headline + hook + CTA","Ad B: headline + hook + CTA","Ad C: headline + hook + CTA"],"posts":["Platform: post idea 1","Platform: post idea 2","Platform: post idea 3"],"funnel":[{"stage":"Awareness","tactic":"tactic"},{"stage":"Interest","tactic":"tactic"},{"stage":"Conversion","tactic":"tactic"},{"stage":"Retention","tactic":"tactic"}],"growthHacks":["hack 1","hack 2","hack 3"]}`;
+
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 2000,
+          temperature: 0.9
+        }
       })
     });
     clearInterval(miv);
@@ -547,7 +562,7 @@ Use this exact JSON structure with short, punchy values:
     }
 
     const data = await res.json();
-    const raw = data.content.map(b=>b.text||'').join('').trim();
+    const raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
 
     let result;
     try { result = JSON.parse(raw); }
